@@ -14,15 +14,15 @@ const Router = DefaultRouter;
 const routes = [
   {
     path: '/',
+    component: require('../../layout').default,
     exact: true,
-    component: require('../index.js').default,
   },
   {
     component: () =>
       React.createElement(
-        require('F:/workspace/react-umi/node_modules/umi-build-dev/lib/plugins/404/NotFound.js')
+        require('F:/workspace/react-umi-web/node_modules/umi-build-dev/lib/plugins/404/NotFound.js')
           .default,
-        { pagesPath: 'src/pages', hasRoutesInConfig: false },
+        { pagesPath: 'src/pages', hasRoutesInConfig: true },
       ),
   },
 ];
