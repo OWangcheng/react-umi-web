@@ -3,13 +3,13 @@ import {drawMarker, drawPolyline, getMarkerLocation, isPointOnLine} from "./mapU
 /**
  * 实现点的拖拽效果
  */
-let startMarker, endMarker, polyline, heightLine, startIndex = 0, endIndex = 0, startPoint, endPoint;
-export let dragData={};
-export const getDragMarker = (path,startPosition,endPosition) => {
+
+export const getDragMarker = (roads, callback, startPosition, endPosition) => {
 
     const {map, AMap} = window;
-    endIndex = path.length;
-    polyline = drawPolyline({path: path}, {
+    let path = roads;
+    let startMarker, endMarker, polyline, heightLine, startIndex = 0, endIndex = path.length, startPoint, endPoint;
+    polyline = drawPolyline({path: roads}, {
         strokeWeight: 6
     });
     heightLine = drawPolyline({}, {
@@ -26,14 +26,14 @@ export const getDragMarker = (path,startPosition,endPosition) => {
         cursor: 'move',
         raiseOnDrag: true
     });
-    bindStartDrag(startMarker);
+    bindStartDrag(startMarker, heightLine);
     startMarker.on('dragend', function (e) {
 
         let flag = isPointOnLine(startMarker, polyline);
         if (flag) {
             startPoint = AMap.GeometryUtil.closestOnLine(startMarker.getPosition(), polyline.getPath());
             startIndex = calculatePosition(startPoint, polyline.getPath());
-            drawStartPolyline(path);
+            drawStartPolyline(startIndex, endIndex, startPoint, endPoint, heightLine, startMarker, endMarker, path, callback);
         }
     })
 
@@ -46,14 +46,14 @@ export const getDragMarker = (path,startPosition,endPosition) => {
         cursor: 'move',
         raiseOnDrag: true
     });
-    bindStartDrag(endMarker);
+    bindStartDrag(endMarker, heightLine);
     endMarker.on('dragend', function (e) {
 
         let flag = isPointOnLine(endMarker, polyline);
         if (flag) {
             endPoint = AMap.GeometryUtil.closestOnLine(endMarker.getPosition(), polyline.getPath());
             endIndex = calculatePosition(endPoint, polyline.getPath());
-            drawEndPolyline(path);
+            drawEndPolyline(startIndex, endIndex, startPoint, endPoint, heightLine, startMarker, endMarker, path, callback);
         }
     })
 }
@@ -61,7 +61,7 @@ export const getDragMarker = (path,startPosition,endPosition) => {
 /**
  * 开始拖拽事件
  */
-const bindStartDrag = (marker) => {
+const bindStartDrag = (marker, heightLine) => {
 
     // 开始拖拽时隐藏绘制的矢量线
     marker.on('dragstart', function () {
@@ -73,11 +73,21 @@ const bindStartDrag = (marker) => {
 
 /**
  * 起点绘制结束
+ * @param startIndex
+ * @param endIndex
+ * @param startPoint
+ * @param endPoint
+ * @param heightLine
+ * @param startMarker
+ * @param endMarker
+ * @param path
+ * @param callback
+ * @returns {Promise<void>}
  */
-const drawStartPolyline = (path) => {
+const drawStartPolyline = async (startIndex, endIndex, startPoint, endPoint, heightLine, startMarker, endMarker, path, callback) => {
 
     const {AMap} = window;
-    let result = [], obj = {};
+    let result = [],obj = {};
     if (startIndex < endIndex) {
         let arr = path.slice(startIndex + 1, endIndex);
         result.push(startPoint);
@@ -88,6 +98,7 @@ const drawStartPolyline = (path) => {
         endPoint && result.push(endPoint);
         result.push(...arr);
         result.push(startPoint);
+        result.reverse();
     }
     heightLine.setPath(result);
     heightLine.setOptions({
@@ -95,39 +106,50 @@ const drawStartPolyline = (path) => {
     })
     // 获取两点之间的距离
     let distance = AMap.GeometryUtil.distance(startPoint, endPoint = endMarker.getPosition());
-    dragData['distance'] = Number.parseFloat(distance.toFixed(2));
+    obj['distance'] = Number.parseFloat(distance.toFixed(2));
     // 解析两点之间的位置关系
-    getMarkerLocation(startMarker, (status, result) => {
-        let index = result.regeocode.formattedAddress.indexOf('街道');
-        dragData['startLocation'] = result.regeocode.formattedAddress.slice(index+2);
-    })
-    getMarkerLocation(endMarker, (status, result) => {
-        let index = result.regeocode.formattedAddress.indexOf('街道');
-        dragData['endLocation'] = result.regeocode.formattedAddress.slice(index+2);
-    })
-    dragData['lnglat'] = result;
+    await getMarkerLocation(startMarker).then(resolve => {
+        console.log('startLocation', resolve);
+        const address = resolve.result.regeocode.formattedAddress;
+        let index = address && address.indexOf('街道');
+        obj['startLocation'] = address && address.slice(index + 2);
+    });
+    await getMarkerLocation(endMarker).then(resolve => {
+        console.log('endLocation', resolve);
+        const address = resolve.result.regeocode.formattedAddress;
+        let index = address && address.indexOf('街道');
+        obj['endLocation'] = address && address.slice(index + 2);
+    });
+
+    obj['lnglat'] = result;
+    console.log('result', obj);
+    callback(obj);
 }
 
 /**
  * 终点绘制结束
- * @param point
+ * @param startIndex
+ * @param endIndex
+ * @param startPoint
+ * @param endPoint
+ * @param heightLine
  * @param path
+ * @param callback
  */
-const drawEndPolyline = (path) => {
+const drawEndPolyline = async (startIndex, endIndex, startPoint, endPoint, heightLine, startMarker, endMarker, path, callback) => {
 
-    let result = [];
+    let result = [], obj = {};
     if (startIndex < endIndex) {
         startPoint && result.push(startPoint);
         let arr = path.slice(startIndex + 1, endIndex);
         result.push(...arr)
         result.push(endPoint);
-
     } else {
         let arr = path.slice(endIndex + 1, startIndex);
         result.push(endPoint);
         result.push(...arr);
         startPoint && result.push(startPoint);
-
+        result.reverse();
     }
     heightLine.setPath(result);
     heightLine.setOptions({
@@ -136,17 +158,22 @@ const drawEndPolyline = (path) => {
 
     // 获取两点之间的距离
     let distance = AMap.GeometryUtil.distance(startPoint = startMarker.getPosition(), endPoint);
-    dragData['distance'] = Number.parseFloat(distance.toFixed(2));
+    obj['distance'] = Number.parseFloat(distance.toFixed(2));
     // 解析两点之间的位置关系
-    getMarkerLocation(startMarker, (status, result) => {
-        let index = result.regeocode.formattedAddress.indexOf('街道');
-        dragData['startLocation'] = result.regeocode.formattedAddress.slice(index+2);
-    })
-    getMarkerLocation(endMarker, (status, result) => {
-        let index = result.regeocode.formattedAddress.indexOf('街道');
-        dragData['endLocation'] = result.regeocode.formattedAddress.slice(index+2);
-    })
-    dragData['lnglat'] = result;
+    await getMarkerLocation(startMarker).then(resolve => {
+        console.log('startLocation', resolve);
+        const address = resolve.result.regeocode.formattedAddress;
+        let index = address && address.indexOf('街道');
+        obj['startLocation'] = address && address.slice(index + 2);
+    });
+    await getMarkerLocation(endMarker).then(resolve => {
+        console.log('endLocation', resolve);
+        const address = resolve.result.regeocode.formattedAddress;
+        let index = address && address.indexOf('街道');
+        obj['endLocation'] = address && address.slice(index + 2);
+    });
+    obj['lnglat'] = result;
+    callback(obj);
 }
 
 

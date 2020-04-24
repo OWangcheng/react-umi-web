@@ -9,7 +9,7 @@ import {dragData, getDragMarker} from "../amap/util/mapComponent";
 let marker;
 
 
-let polyline, heightLine;
+let polyline, heightLine,resultPath=[];
 const mapLoaded = () => {
     const {map, AMap} = window;
 
@@ -212,11 +212,18 @@ const bindStartDrag = (marker) => {
 }
 
 const drawDragMarker = (path) => {
-    getDragMarker(path);
+    getDragMarker(path,getDragResult);
 }
 
-const getDragResult = () => {
-    console.log(dragData);
+const getDragResult = (param) => {
+    console.log(param);
+    resultPath = [...param.lnglat];
+}
+
+const approvalMaker = () => {
+    const { map, AMap } = window;
+    map.clearMap( );
+    resultPath.length>0 && getDragMarker(roadPath,getDragResult,resultPath[0],resultPath[resultPath.length-1]);
 }
 
 
@@ -225,6 +232,7 @@ const MapTest = () => {
         <div>
             <Button onClick={() => drawDragMarker(roadPath)}>绘制拖拽图标</Button>
             <Button onClick={getDragResult}>结果</Button>
+            <Button onClick={approvalMaker}>指定坐标</Button>
             <GisMap/>
         </div>
     )

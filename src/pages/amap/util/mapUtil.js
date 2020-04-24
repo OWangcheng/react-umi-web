@@ -81,10 +81,17 @@ export const calculatePosition = (position, path) => {
 /**
  * 获取点的位置信息
  */
-export const getMarkerLocation = (maker,callback) => {
+export const getMarkerLocation = async (maker) => {
     const {map, AMap} = window;
-    let geocoder = new window.AMap.Geocoder({});
-    geocoder.getAddress(maker.getPosition(), callback)
+    let geocoder = new AMap.Geocoder({});
+    return new Promise(resolve => {
+        geocoder.getAddress(maker.getPosition(),(status,result) => resolve({status,result}));
+    })
+    /*await geocoder.getAddress(maker.getPosition(), (status,result) => {
+        let index = result.regeocode.formattedAddress.indexOf('街道');
+        result.regeocode.formattedAddress.slice(index + 2);
+        console.log('location',result.regeocode.formattedAddress.slice(index + 2));
+    })*/
 }
 
 
