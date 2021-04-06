@@ -12,9 +12,10 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
+    "dva-cli": "^0.10.1",
     "react": "16.8.6",
-    "umi-plugin-react": "^1.15.8",
-    "umi": "^2.4.13"
+    "umi": "^2.4.13",
+    "umi-plugin-react": "^1.15.8"
   },
   "devDependencies": {
     "@babel/polyfill": "7.0.0",

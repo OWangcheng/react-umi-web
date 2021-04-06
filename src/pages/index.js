@@ -1,3 +1,7 @@
+import Study from "./study";
+
 export default () => {
-    return <div>Hello React!</div>
+    return <div>
+        <Study/>
+    </div>
 }
